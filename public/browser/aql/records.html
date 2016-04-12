@@ -1,13 +1,13 @@
 <div class="row">
     <div class="col-md-9">
-        <textarea class="form-control" ng-model="aqlString" placeholder="AQL..." style="height: 68px"></textarea>
+        <textarea class="form-control" ng-model="AQL.str" placeholder="AQL..." style="height: 68px"></textarea>
     </div>
     <div class="col-md-3">
-        <input type="text" class="form-control" ng-model="aqlAlias" placeholder="AQL alias name">
+        <input type="text" class="form-control" ng-model="AQL.alias" placeholder="AQL alias name">
         <button class="btn btn-primary form-control"
-                ng-click="aqlQuery(formData, aqlString, aqlAlias)"
-                ng-disabled="!aqlString">
-            Query<span ng-show="aqlAlias"> & Save</span>
+                ng-click="aqlQuery(formData, AQL.str, AQL.alias)"
+                ng-disabled="!AQL.str">
+            Query<span ng-show="AQL.alias"> & Save</span>
         </button>
     </div>
 </div>
@@ -30,7 +30,20 @@
 
 <div full-height="200">
     <span class="text-center" ng-show="loading">Loading....</span>
+    <div class="col-md-12" ng-init="aqlData_Type='bar'">
+        <div class="col-md-4">
+            <canvas id="line" class="chart chart-line" chart-data="aqlChart.data" chart-labels="aqlChart.labels"
+                    chart-legend="false" chart-series="aqlChart.series" chart-options="{scaleFontSize: 0}"></canvas>
+        </div>
+        <div class="col-md-4">
+            <canvas id="bar" class="chart chart-bar" chart-data="aqlChart.data" chart-labels="aqlChart.labels"
+                    chart-legend="false" chart-series="aqlChart.series" chart-options="{scaleFontSize: 0}"></canvas>
 
+        </div>
+        <div class="col-md-4">
+            <canvas id="doughnut" class="chart chart-doughnut" chart-data="aqlChart.data[0]" chart-labels="aqlChart.labels"></canvas>
+        </div>
+    </div>
     <table class="table table-striped" ng-show="aqlData.Schema">
         <thead>
         <tr>
@@ -49,20 +62,3 @@
         </tbody>
     </table>
 </div>
-
-
-<!--<nav class="pull-right">
-    <ul class="pagination">
-        <li>
-            <a aria-label="Previous" ng-click="jump((currentPage-1)<0?0:currentPage-1)">
-                <span aria-hidden="true">&laquo;</span>
-            </a>
-        </li>
-        <li ng-repeat="i in [] |range:aqlData.Result[0].Row.length/formData.pageSize" ng-class="{active: currentPage==i}" ng-click="jump(i)"><a>{{ i + 1 }}</a></li>
-        <li>
-            <a aria-label="Next" ng-click="jump((currentPage+1)>aqlData.Result[0].Row.length/formData.pageSize?currentPage:currentPage+1)">
-                <span aria-hidden="true">&raquo;</span>
-            </a>
-        </li>
-    </ul>
-</nav>-->

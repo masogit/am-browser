@@ -2,7 +2,6 @@
     <small>
         <a ng-click="query(tableData.form)" class="badge"><span class="glyphicon glyphicon-refresh"></span></a>
         <a ng-click="tableData.restEdit=!tableData.restEdit" class="badge"><span class="glyphicon glyphicon-pencil"></span></a>
-        <!--<a ng-click="tableData.aqlEdit=!tableData.aqlEdit" class="badge"><span class="glyphicon glyphicon-pencil"></span> AQL</a>-->
         <small>Count: {{ tableData.count }} Elapsed time: {{ tableData.timeEnd - tableData.timeStart }}ms</small>
     </small>
     <small class="pull-right">
@@ -15,7 +14,7 @@
     </small>
 </h4>
 
-<div full-height="185">
+<div full-height="190">
     <span class="text-center" ng-show="loading">Loading....</span>
     <form class="form-inline" ng-show="tableData.restEdit">
         <input class="form-control" type="text" placeholder="Limit" ng-model="tableData.form.param.limit" size="1">
@@ -24,13 +23,7 @@
         <input class="form-control" type="text" placeholder="Order By..." ng-model="tableData.form.param.orderby" size="20">
         <button class="btn" ng-click="query(tableData.form)">Query</button>
     </form>
-    <!--<form class="form-inline" ng-show="tableData.aqlEdit">
-        <input class="form-control" type="text" placeholder="Table Name" ng-model="tableData.aql.tableName">
-        <input class="form-control" type="text" placeholder="Fields..." ng-model="tableData.aql.fields">
-        <input class="form-control" type="text" placeholder="Where, group, order by" ng-model="tableData.aql.where" size="30">
-        <button class="btn" ng-click="aqlQuery(tableData.form, tableData.aql)">Query</button>
-    </form>-->
-    <table class="table table-striped" ng-show="tableData.entities">
+    <table class="table table-striped table-condensed" ng-show="tableData.entities">
         <thead>
             <tr ng-repeat="e in tableData.entities" ng-if="$first">
                 <th ng-show="e['ref-link']">
@@ -50,8 +43,10 @@
         <tbody>
             <tr ng-repeat="e in tableData.entities|filter:search|orderBy:predicate:reverse|startFrom:currentPage*formData.pageSize|limitTo:formData.pageSize">
                 <td ng-show="e['ref-link']">
-                    <a ng-click="showRelations(e)">{{ e['ref-link'] }}</a>
-                    <a ng-click="load(e)"><span class="glyphicon glyphicon-edit"></span></a>
+                    <a href="#relations" ng-click="showRelations(e)">
+                        <span class="glyphicon glyphicon-zoom-in"></span>
+                    </a>
+                    {{ e['ref-link'] }}
                 </td>
                 <td ng-repeat="(key, value) in e" ng-show="key!='ref-link'">
                     {{ formatValue(key, value) }}

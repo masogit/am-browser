@@ -1,23 +1,22 @@
-var am = angular.module('am', ['ui.bootstrap', 'ngRoute', 'mobile-angular-ui', 'mobile-angular-ui.gestures']);
+var am = angular.module('am', ['ui.bootstrap', 'ngRoute', 'mobile-angular-ui', 'mobile-angular-ui.gestures', 'chart.js']);
 
-//am.run(function ($transform) {
-//    window.$transform = $transform;
-//});
-//
-//am.config(function ($routeProvider) {
-//    $routeProvider.when('/m/temp_edit', { templateUrl: '/mobile/temp_edit.html', reloadOnSearch: false });
-//    $routeProvider.when('/m/temp_records', { templateUrl: '/mobile/temp_records.html', reloadOnSearch: false });
-//    $routeProvider.when('/m/temp_record', { templateUrl: '/mobile/temp_record.html', reloadOnSearch: false });
-//    $routeProvider.when('/m/tab_tree', { templateUrl: '/mobile/tab_tree.html', reloadOnSearch: false });
-//});
+am.config(function ($routeProvider) {
+    $routeProvider.when('/explorer', { templateUrl: '/browser/explorer/index.html'});
+    $routeProvider.when('/explorer/records', { templateUrl: '/browser/explorer/records.html'});
+    $routeProvider.when('/relations', { templateUrl: '/browser/relations.html'});
+    $routeProvider.when('/builder', { templateUrl: '/browser/builder/index.html'});
+    $routeProvider.when('/setting', { templateUrl: '/browser/setting.html'});
+    $routeProvider.when('/aql', { templateUrl: '/browser/aql/index.html'});
+    $routeProvider.otherwise({ redirectTo: '/explorer' });
 
-am.controller('amCtl', function ($scope, $http, $uibModal) {
+});
+
+am.controller('amCtl', function ($scope, $http, $uibModal, $window) {
     var AM_FORM_DATA = "amFormData";
-    var AM_AQL_HIST = "amAQLHist";
 
     $scope.title = "AM Browser";
     $scope.formData = {
-        server: "16.165.217.186:8081", // "16.165.217.186:8081",
+        server: "", // "16.165.217.186:8081",
         context: "/AssetManagerWebService/rs/",
         "ref-link": "",     // "db/amLocation/126874",
         collection: "",     // "EmplDepts",
@@ -30,15 +29,65 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
         },
 
         method: "get",
-        user: "admin", // admin
+        user: "", // admin
         password: "",
 
         pageSize: 10,
+        viewStyle: "tile",
         //        showError: false,
         showLabel: false
     };
 
     $scope.alerts = [];
+    $scope.AQL = {
+        alias: "",
+        str: ""
+    };
+
+    $scope.ucmdb = {
+        server: "",
+        user: "",
+        password: "",
+        path: "/ucmdb-browser/ucmdb_widget.jsp?server=Default%20Client&locale=en#widget=properties;refocus-selection="
+    };
+
+    // $scope.redis = {
+    //     host: "",
+    //     port: "",
+    //     auth_pass: "",
+    //     enabled: false,
+    //     ttl: 0  
+    // };
+
+    $scope.getAM = function () {
+        $http.get("/am/conf").success(function (data) {
+            if (data) {
+                $scope.formData.server = data.server;
+                $scope.formData.user = data.user;
+                $scope.disabledServer = true;              
+            }
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
+    };
+
+    // console.log(window.location.pathname);
+    if (window.location.pathname.indexOf("login") < 0) {
+        if (sessionStorage && sessionStorage[AM_FORM_DATA]) {
+            var form = JSON.parse(sessionStorage.getItem(AM_FORM_DATA));
+
+            if (form.server == "" || form.user == "") {
+                $scope.lastPath = window.location.pathname;
+                window.location.href = "/login";
+            }
+        } else {
+            window.location.href = "/login";
+        }
+
+    }
 
     $scope.login = function () {
         var form = clone($scope.formData);
@@ -48,7 +97,8 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
         $http.post('/am/rest', form).success(function (data) {
             if (data instanceof Object) {
                 $scope.store();
-                window.location.href = "/amx";
+//                $scope.init();
+                window.location.href = "/browser";
             } else {
                 $scope.alerts.push({
                     type: 'danger',
@@ -66,8 +116,19 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
     };
 
     $scope.logout = function () {
-        $scope.formData.password = "";
+        if (sessionStorage)
+            sessionStorage.removeItem(AM_FORM_DATA);
+
         window.location.href = "/login";
+    };
+
+    $scope.back = function () {
+        $window.history.back();
+    };
+
+    $scope.inHash = function (module) {
+        var hash = $window.location.hash;
+        return hash.indexOf(module) > -1;
     };
 
     $scope.store = function () {
@@ -80,33 +141,39 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
                 showLabel: $scope.formData.showLabel,
                 //                showError: $scope.formData.showError,
                 limit: $scope.formData.param.limit,
-                offset: $scope.formData.param.offset
+                offset: $scope.formData.param.offset,
+                viewStyle: $scope.formData.viewStyle
             };
             localStorage.setItem(AM_FORM_DATA, JSON.stringify(form));
         }
-        delete $scope.serverbar;
-        $scope.metadata('all');
+
+        if (sessionStorage) {
+            var form = {
+                server: $scope.formData.server,
+                user: $scope.formData.user
+            };
+            sessionStorage.setItem(AM_FORM_DATA, JSON.stringify(form));
+        }
+
+        if ($scope.ucmdb && $scope.ucmdb.server) $scope.saveUCMDB();
+        // if ($scope.redis && $scope.redis.host && $scope.redis.port) $scope.saveRedis();
     };
 
-    if (localStorage && localStorage[AM_FORM_DATA]) {
-        var form = JSON.parse(localStorage.getItem(AM_FORM_DATA));
-        $scope.formData.server = form.server;
-        $scope.formData.user = form.user;
-        $scope.formData.password = form.password;
-        $scope.formData.pageSize = form.pageSize;
-        $scope.formData.showLabel = form.showLabel;
-        //        $scope.formData.showError = form.showError;
-        $scope.formData.param.limit = form.limit;
-        $scope.formData.param.offset = form.offset;
-    }
-
-    // console.log(window.location.pathname);
-    if (window.location.pathname.indexOf("login") < 0) {
-        if ($scope.formData.server == "" || $scope.formData.user == "") {
-            $scope.lastPath = window.location.pathname;
-            window.location.href = "/login";
+    $scope.init = function () {
+        if (localStorage && localStorage[AM_FORM_DATA]) {
+            var form = JSON.parse(localStorage.getItem(AM_FORM_DATA));
+            if (form.server) $scope.formData.server = form.server;
+            if (form.user) $scope.formData.user = form.user;
+            if (form.password) $scope.formData.password = form.password;
+            if (form.pageSize) $scope.formData.pageSize = form.pageSize;
+            if (form.showLabel) $scope.formData.showLabel = form.showLabel;
+            //        $scope.formData.showError = form.showError;
+            if (form.limit) $scope.formData.param.limit = form.limit;
+            if (form.offset) $scope.formData.param.offset = form.offset;
+            if (form.viewStyle) $scope.formData.viewStyle = form.viewStyle;
         }
-    }
+    };
+
 
     $scope.toggleCheckbox = function (array, field) {
         if (!array)
@@ -130,40 +197,103 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
     };
 
     /**
+     * save UCMDB info
+     */
+    $scope.loadUCMDB = function () {
+        $http.get('/json/ucmdb').success(function (data) {
+            if (data[0]) $scope.ucmdb = data[0];
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
+    };
+    $scope.loadUCMDB();
+
+    $scope.saveUCMDB = function () {
+        if ($scope.ucmdb && $scope.ucmdb.server)
+            $http.post('/json/ucmdb', $scope.ucmdb).success(function (data) {
+
+            }).error(function (data) {
+                    $scope.alerts.push({
+                        type: 'danger',
+                        msg: data
+                    });
+                });
+    };
+
+    $scope.urlUCMDB = function (gId) {
+        return $scope.ucmdb.server + $scope.ucmdb.path + gId + ";username=" + $scope.ucmdb.user + ";password=" + $scope.ucmdb.password;
+    };
+
+    /**
+     * save Redis info
+     */
+    $scope.loadRedis = function () {
+        $http.get('/redis').success(function (data) {
+            $scope.redis = data;
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
+    };
+    $scope.loadRedis();
+
+    $scope.saveRedis = function () {
+        if ($scope.redis && $scope.redis.host && $scope.redis.port)
+            $http.post('/redis', $scope.redis).success(function (data) {
+
+            }).error(function (data) {
+                    $scope.alerts.push({
+                        type: 'danger',
+                        msg: data
+                    });
+                });
+    };
+
+    /**
      * build native AQL query
      */
     $scope.loadAQLs = function () {
-        //        if (localStorage && localStorage[AM_AQL_HIST])
-        //            $scope.aqlHist = JSON.parse(localStorage.getItem(AM_AQL_HIST));
-
         var form = clone($scope.formData);
         form['ref-link'] = "db/amInToolReport";
         $http.post('/am/rest', form).success(function (data) {
             $scope.amInToolRepoprt = data;
         });
+
+        $http.get('/json/aql').success(function (data) {
+            $scope.aqlHist = data;
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
+
     };
 
     $scope.loadAQL = function (aql, name) {
-        $scope.aqlString = aql;
-        $scope.aqlAlias = name;
+        $scope.AQL.str = aql;
+        $scope.AQL.alias = name;
         $scope.selectedAQL = name;
     };
 
-    $scope.removeAQL = function (name) {
-        if ($scope.aqlHist) {
-            var pos = $scope.aqlHist.map(function (obj) {
-                return obj.name;
-            }).indexOf(name);
-
-            $scope.aqlHist.splice(pos, 1);
-
-            //            if (localStorage) {
-            //                localStorage.setItem(AM_AQL_HIST, JSON.stringify($scope.aqlHist));
-            //            }
-        }
+    $scope.removeAQL = function (aql) {
+        if (aql.$loki)
+            $http.delete('/json/aql/' + aql.$loki).success(function (data) {
+                $scope.loadAQLs();
+            }).error(function (data) {
+                    $scope.alerts.push({
+                        type: 'danger',
+                        msg: data
+                    });
+                });
     };
 
-    $scope.saveAQL = function (name, str) {
+    $scope.saveAQL = function (name, str, aqlChart) {
         // init
         if (!$scope.aqlHist)
             $scope.aqlHist = [];
@@ -172,21 +302,29 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
             return obj.name == name;
         })[0];
 
+        var aqlObj;
+
         if (aql) {
             aql.str = str;
             aql.time = Date.now();
+            aql.data = aqlChart;
+            aqlObj = aql;
         } else {
-            $scope.aqlHist.push({
+            aqlObj = {
                 name: name,
                 str: str,
-                time: Date.now()
-            });
+                time: Date.now(),
+                data: aqlChart
+            };
         }
-
-        //        if (localStorage) {
-        //            localStorage.setItem(AM_AQL_HIST, JSON.stringify($scope.aqlHist));
-        //        }
-
+        $http.post('/json/aql', aqlObj).success(function (data) {
+            $scope.loadAQLs();
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
     };
 
     $scope.str2AQL = function (str) {
@@ -215,6 +353,9 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
     };
 
     $scope.aqlQuery = function (form, str, name) {
+        $scope.AQL.alias = name;
+        $scope.AQL.str = str;
+
         var form = clone(form);
         var aql = $scope.str2AQL(str);
 
@@ -224,10 +365,18 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
             form.collection += " " + aql.where;
         $scope.query(form);
 
-        if (name && name.trim() != "")
-            $scope.saveAQL(name, str);
+//        if (name && name.trim() != "")
+//            $scope.saveAQL(name, str);
     };
 
+    $scope.setChartData = function (aql) {
+        if (aql) {
+            $scope.tempTable.chartData = aql.data;
+        } else {
+            delete $scope.tempTable.chartType;
+            delete $scope.tempTable.chartData;
+        }
+    };
     // amx_record query
     $scope.query = function (form) {
         $scope.loading = true;
@@ -252,6 +401,21 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
                     $scope.aqlData.count = data.Query.Result[0].Row.length;
                     $scope.aqlData['timeStart'] = timeStart;
                     $scope.aqlData['timeEnd'] = Date.now();
+
+                    // output charts data
+                    $scope.aqlChart = {};
+                    var data_1 = [];
+                    $scope.aqlChart.series = ['A'];
+                    $scope.aqlChart.labels = [];
+                    $scope.aqlChart.data = [data_1];
+                    $scope.aqlData.Result[0].Row.forEach(function (obj) {
+                        $scope.aqlChart.labels.push(obj.Column[0]['_']);
+                        data_1.push(obj.Column[1]['_']);
+                    });
+
+                    // save AQL
+                    if ($scope.AQL.alias && $scope.AQL.alias.trim() != "")
+                        $scope.saveAQL($scope.AQL.alias, $scope.AQL.str, $scope.aqlChart);
 
                 } else {
                     $scope.tableData = {};
@@ -279,7 +443,7 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
 
                 $scope.alerts.push({
                     type: 'danger',
-                    msg: data
+                    msg: 'returned data: ' + data
                 });
 
             }
@@ -389,7 +553,7 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
     $scope.load = function (data) {
         var modalInstance = $uibModal.open({
             animation: true,
-            templateUrl: 'am_modal.html',
+            templateUrl: '/browser/record_edit.html',
             controller: 'amModalCtrl',
             size: "modal-lg",
             resolve: {
@@ -652,7 +816,9 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
     };
 
     $scope.saveTemplate = function (temp) {
-        //        console.log("saveTemplate: " + JSON.stringify(temp));
+        if (!temp.visit)
+            temp.visit = 0;
+
         $http.post('/json/template', temp).success(function (data) {
             //            console.log("saveTemplate: " + JSON.stringify(data));
             temp = data;
@@ -666,7 +832,22 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
                 });
             });
 
-        $scope.backTableList();
+    };
+
+    $scope.visitTemplate = function (temp) {
+        if (temp.visit)
+            temp.visit = temp.visit + 1;
+        else
+            temp.visit = 1;
+
+        $http.post('/json/template', temp).success(function (data) {
+            temp = data;
+        }).error(function (data) {
+                $scope.alerts.push({
+                    type: 'danger',
+                    msg: data
+                });
+            });
     };
 
     $scope.closeTemplate = function () {
@@ -953,6 +1134,22 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
         }
     };
 
+    $scope.cacheSearch = function (keyword) {
+        if (keyword && $scope.redis.enabled) {
+            var timeStart = Date.now();
+            $http.post('/cache/search', {keyword: keyword}).success(function (data) {
+                $scope.cachedRefLinks = data.ids;
+                $scope.cacheSearch.count = data.count;
+                $scope.cacheSearch.timeEnd = Date.now();
+                $scope.cacheSearch.timeStart = timeStart;
+
+            });
+        }
+        else {
+            $scope.cachedRefLinks = null;
+        }
+    };
+
     $scope.hiddenRelations = function (record) {
         //        console.log("record: " + JSON.stringify(record));
         if (record && record.link) {
@@ -1015,6 +1212,16 @@ am.controller('amCtl', function ($scope, $http, $uibModal) {
             } else {
                 $scope.tableData.form.param.orderby = "";
             }
+    };
+
+    $scope.group = function (key) {
+        if (key)
+            $scope.tempTable.groupByKey = key;
+        else
+            $scope.tempTable.groupByKey = "";
+
+//        if ($scope.tempTable)
+//            $scope.saveTemplate($scope.tempTable);
     };
 
     $scope.jump = function (i) {
@@ -1125,6 +1332,27 @@ am.filter('range', function () {
         return input;
     };
 });
+
+am.filter('groupBy', function ($timeout) {
+    return function (data, key) {
+        if (!key) return data;
+        if (data) {
+            var outputPropertyName = '__groupBy__' + key;
+            if (!data[outputPropertyName]) {
+                var result = {};
+                for (var i = 0; i < data.length; i++) {
+                    var objKey = (data[i][key] instanceof Object) ? data[i][key][Object.keys(data[i][key])[0]] : data[i][key];
+                    if (!result[objKey])
+                        result[objKey] = [];
+                    result[objKey].push(data[i]);
+                }
+                Object.defineProperty(data, outputPropertyName, {enumerable: false, configurable: true, writable: false, value: result});
+                // $timeout(function(){delete data[outputPropertyName];},0,false);
+            }
+            return data[outputPropertyName];
+        }
+    };
+})
 
 am.directive('myEnter', function () {
     return function (scope, element, attrs) {

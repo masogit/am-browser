@@ -1,5 +1,9 @@
+var loki = require('lokijs');
+var db;
+
 // check db folder and files
-module.exports = function (dbFolder) {
+exports.init = function (dbFolder, json) {
+    db = new loki(dbFolder + json);
     const fs = require('fs');
     fs.exists(dbFolder, function (db) {
         if (!db) {
@@ -15,9 +19,9 @@ module.exports = function (dbFolder) {
 
         }
 
-        fs.exists(dbFolder + '/template.json', function (template) {
+        fs.exists(dbFolder + json, function (template) {
             if (!template)
-                fs.writeFile(dbFolder + "/template.json", "", function (err) {
+                fs.writeFile(dbFolder + json, "", function (err) {
                     if (err) {
                         return console.log(err);
                     }
@@ -25,16 +29,88 @@ module.exports = function (dbFolder) {
                     console.log("The template file was created!");
                 });
         });
-        fs.exists(dbFolder + '/metadata.json', function (metadata) {
-            if (!metadata)
-                fs.writeFile(dbFolder + "/metadata.json", "", function (err) {
-                    if (err) {
-                        return console.log(err);
-                    }
-
-                    console.log("The metadata file was created!");
-                });
-        });
 
     });
-}
+
+    // init create public/csv folder
+    fs.exists("public/csv", function (db) {
+        if (!db) {
+            console.log("not found public/csv folder");
+
+            fs.mkdir("public/csv", function (err) {
+                if (err) {
+                    return console.log(err);
+                }
+
+                console.log("The public/csv folder was created!");
+            })
+
+        }
+    });
+};
+
+exports.get = function (req, res) {
+    var collectionName = req.params.collection;
+    db.loadDatabase({}, function () {
+        var coll = db.getCollection(collectionName);
+        if (!coll) {
+            res.json([]);
+        } else {
+            // console.log(temp.data);
+            res.json(coll.data);
+        }
+    });
+
+};
+
+exports.getColl = function (collectionName, callback) {
+    db.loadDatabase({}, function () {
+        var coll = db.getCollection(collectionName);
+        if (callback instanceof Function && coll && coll.data)
+            callback(coll.data);
+    });
+};
+
+exports.set = function (req, res) {
+    var collectionName = req.params.collection;
+    var coll = db.getCollection(collectionName);
+    if (!coll) {
+        coll = db.addCollection(collectionName);
+    }
+    var obj = req.body;
+
+    var data;
+    if (obj.$loki)
+        data = coll.update(obj);
+    else
+        data = coll.insert(obj);
+    res.json(data);
+
+    db.saveDatabase();
+};
+
+exports.setColl = function (collectionName, obj) {
+    var coll = db.getCollection(collectionName);
+    if (!coll) {
+        coll = db.addCollection(collectionName);
+    }
+
+    var data;
+    if (obj.$loki)
+        data = coll.update(obj);
+    else
+        data = coll.insert(obj);
+
+    db.saveDatabase();    
+};
+
+exports.del = function (req, res) {
+    var collectionName = req.params.collection;
+    var id = req.params.id;
+    var coll = db.getCollection(collectionName);
+    console.log("Delete collection: " + collectionName + " id: " + id);
+    var data = coll.remove({$loki: id});
+    res.json(data);
+
+    db.saveDatabase();
+};

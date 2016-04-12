@@ -1,5 +1,6 @@
 <span style="display: none">{{ r.child = relations }}</span>
-<div ng-show="r.child" ng-include="'amNexLevel'"></div>
+
+<div class="col-md-12" ng-show="r.child" ng-include="'amNexLevel'"></div>
 
 
 <script type="text/ng-template" id="amNexLevel">
@@ -10,8 +11,10 @@
         <!-- Display links -->
         <div class="panel-heading">
             <ul class="nav nav-pills">
-                <li role="presentation"><a ng-click="hiddenRelations(r)"><span
-                        class="glyphicon glyphicon-remove"></span>Close</a></li>
+                <li role="presentation">
+                    <a ng-click="hiddenRelations(r)" ng-show="r.link"><span class="glyphicon glyphicon-remove"></span>Close</a>
+                    <a ng-click="back()" ng-hide="r.link"><span class="glyphicon glyphicon-chevron-left"></span>Back</a>
+                </li>
                 <li role="presentation" ng-repeat="r in childs" ng-class="{active: r.active}"
                     ng-show="r.records.length>0"
                     ng-init="getRecords(r)">
@@ -58,9 +61,11 @@
                 <tbody>
                 <tr ng-repeat="e in r.records">
                     <td ng-show="e['ref-link']">
-                        <a ng-click="showRelations(e, r)" ng-if="pos>0">{{ e['ref-link'] }}</a>
-                        <span ng-if="pos==0">{{ e['ref-link'] }}</span>
-                        <a ng-click="load(e)"><span class="glyphicon glyphicon-edit"></span></a>
+                        <a href="#relations" ng-click="showRelations(e, r)" ng-if="pos>0">
+                            <span class="glyphicon glyphicon-zoom-in"></span>
+                        </a>
+                        {{ e['ref-link'] }}
+                        <a ng-click="load(e)" ng-if="pos==0"><span class="glyphicon glyphicon-edit"></span></a>
                     </td>
                     <td ng-repeat="(key, value) in e" ng-show="key!='ref-link'">
                         {{ formatValue(key, value, r.fields) }}
