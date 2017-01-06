@@ -1,4 +1,4 @@
-# AM Browser
+# AM Browser (POC)
 
 A lightweight Asset Manager web browser, to search AM database, build simple data views, quick search and execute AQL, etc.
 
